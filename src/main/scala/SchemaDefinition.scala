@@ -48,6 +48,37 @@ object SchemaDefinition {
           resolve = _.value.appearsIn map (e ⇒ Some(e)))
       ))
 
+  import sangria.macros.derive._
+  implicit val PictureType2 = 
+    deriveObjectType[Unit, Picture](
+      ObjectTypeDescription("The product picture"), 
+      DocumentField("url", "picture CDN Url")
+      )
+  val PictureType = ObjectType(
+    "Picture", 
+    "The product's picture",
+    fields[Unit, Picture](
+      Field("width", IntType, resolve = _.value.width),
+      Field("height", IntType, resolve = _.value.height),
+      Field("url", OptionType(StringType) , 
+        description = Some("picturn CDN Url "),
+        resolve = _.value.url
+      )
+    ))
+
+  val IdentifiableType = InterfaceType(
+    "Identifiable",
+    "Something that can be identified",
+    fields[Unit, Identifiable](
+      Field("id", StringType, resolve = _.value.id)
+      )
+    )
+
+  val ProductType = 
+    deriveObjectType[Unit, Product](
+      Interfaces(IdentifiableType),
+      IncludeMethods("picture")
+      )
   val Human =
     ObjectType(
       "Human",
@@ -96,6 +127,8 @@ object SchemaDefinition {
 
   val ID = Argument("id", StringType, description = "id of the character")
 
+  val productId = Argument("id", StringType, description = "id of the product")
+
   val EpisodeArg = Argument("episode", OptionInputType(EpisodeEnum),
     description = "If omitted, returns the hero of the whole saga. If provided, returns the hero of that particular episode.")
 
@@ -114,4 +147,40 @@ object SchemaDefinition {
     ))
 
   val StarWarsSchema = Schema(Query)
+
+  /** 
+    * Modelling this query:
+    * type Query {
+        product(id: Int!): Product
+        products: [Product]
+      }
+      */
+  val ProductQuery = ObjectType(
+    "Query", fields[ProductRepo, Unit](
+      Field("product", OptionType(ProductType),
+        description = Some("Returns a product with specific id."),
+        arguments = productId :: Nil, // arguments to the query i.e. `id`
+        resolve = c ⇒ c.ctx.product(c arg productId)
+      ),
+      
+      Field("products", ListType(ProductType),
+        description = Some("Returns a list of all available products."),
+        // notice that there is NO arguments
+        resolve = _.ctx.products)))
+  val ProductSchema = Schema(ProductQuery)
+
+  val ProductQueryViaCassandra = ObjectType(
+    "Query", fields[CassandraRepo, Unit](
+      Field("product", OptionType(ProductType),
+        description = Some("Returns a product with specific id."),
+        arguments = productId :: Nil, // arguments to the query i.e. `id`
+        resolve = c ⇒ c.ctx.product(c arg productId)
+      ),
+      
+      Field("products", ListType(ProductType),
+        description = Some("Returns a list of all available products."),
+        // notice that there is NO arguments
+        resolve = _.ctx.products)))
+ 
+  val ProductSchemaViaCassandra = Schema(ProductQueryViaCassandra)
 }

@@ -19,7 +19,13 @@ object Server extends App {
 
   import system.dispatcher
 
+  def generateRowsInCassandra = new CassandraWriter
+
   val route: Route =
+    (post & path("gendata")) { // run this to generate 1-million rows into Cassandra on your localhost
+      generateRowsInCassandra.run()
+      complete(OK)
+    } ~
     (post & path("graphql")) {
       entity(as[JsValue]) { requestJson ⇒
         val JsObject(fields) = requestJson
@@ -39,10 +45,9 @@ object Server extends App {
 
           // query parsed successfully, time to execute it!
           case Success(queryAst) ⇒
-            complete(Executor.execute(SchemaDefinition.StarWarsSchema, queryAst, new CharacterRepo,
+            complete(Executor.execute(SchemaDefinition.ProductSchemaViaCassandra, queryAst, new CassandraRepo,
                 variables = vars,
-                operationName = operation,
-                deferredResolver = DeferredResolver.fetchers(SchemaDefinition.characters))
+                operationName = operation)
               .map(OK → _)
               .recover {
                 case error: QueryAnalysisError ⇒ BadRequest → error.resolveError
