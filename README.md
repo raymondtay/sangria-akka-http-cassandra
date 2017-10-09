@@ -1,10 +1,10 @@
 ## Sangria akka-http Cassandra Example
 
-Inspired from Oleg Ilyenko's original repo where Oleg demonstrated how Sangria
+**Note:** Inspired from Oleg Ilyenko's original repo where Oleg demonstrated how Sangria
 can be integrated with Akka Http which the GQL can be offered as a service.
 
 This repo simply rides ontop of that by demonstrating how the querying can be
-lifted from Cassandra. *Caution* : this example is for demonstratio purposes
+lifted from Cassandra. **Caution** : this example is for demonstration purposes
 _only_.
 
 An example [GraphQL](http://facebook.github.io/graphql/) server written with [akka-http](https://github.com/akka/akka-http) and [sangria](https://github.com/OlegIlyenko/sangria).
