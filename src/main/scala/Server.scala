@@ -19,13 +19,9 @@ object Server extends App {
 
   import system.dispatcher
 
-  def generateRowsInCassandra = new CassandraWriter
-
   val route: Route =
-    (post & path("gendata")) { // run this to generate 1-million rows into Cassandra on your localhost
-      generateRowsInCassandra.run()
-      complete(OK)
-    } ~
+    Routes.csvRoute ~
+    Routes.initializeCassandraWithDataRoute ~
     (post & path("graphql")) {
       entity(as[JsValue]) { requestJson ⇒
         val JsObject(fields) = requestJson
@@ -64,5 +60,7 @@ object Server extends App {
       getFromResource("graphiql.html")
     }
 
-  Http().bindAndHandle(route, "0.0.0.0", sys.props.get("http.port").fold(8080)(_.toInt))
+  val h = Http().bindAndHandle(route, "0.0.0.0", sys.props.get("http.port").fold(8080)(_.toInt))
+  scala.io.StdIn.readLine()
+  h.onComplete(_ => system.terminate)
 }
