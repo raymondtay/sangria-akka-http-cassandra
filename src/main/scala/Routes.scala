@@ -10,6 +10,8 @@ import akka.util.ByteString
 import akka.http.scaladsl.unmarshalling._
 import akka.http.scaladsl.model.{HttpRequest, HttpEntity}
 
+import akka.stream.alpakka.csv.scaladsl.CsvParsing
+
 object Routes {
 
   def generateRowsInCassandra(implicit AS: ActorSystem, AM: ActorMaterializer) = new CassandraWriter
@@ -23,9 +25,20 @@ object Routes {
       }
   }
 
+  // Using the alpakka csv 0.14 
+  // the default delimiter is ',' and so we have to change it to newline i.e.
+  // '\n'
+  implicit val alpakkaCsvUnmarshaller : FromRequestUnmarshaller[List[Data]] = Unmarshaller.withMaterializer {
+    implicit ex => implicit mat => req : HttpRequest =>
+      req.entity.dataBytes.via(CsvParsing.lineScanner('\n'.asInstanceOf[Byte])).map(_.map(_.utf8String)).runFold(List.empty[Data]){
+        (acc, xs) => 
+          xs.map(_.split(",")).map(d => Data(d(0), d(1), d(2))) ::: acc
+      }
+  } 
+
   val csvRoute = 
     (post & path("upload_csv")) {
-      entity[List[Data]](dataCsvUnmarshaller) { 
+      entity[List[Data]](alpakkaCsvUnmarshaller) {  // you can use either this alpakka version or the other which is `dataCsvUnmarshaller` which achieves the same thing.
         csvData => 
           println(csvData)
           complete(OK)
