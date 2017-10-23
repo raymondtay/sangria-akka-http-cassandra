@@ -45,6 +45,22 @@ object Routes {
       }
     }
 
+  val readHDF5Route = 
+    (get & path("benchmark_alluxio_reads")) {
+      parameters('path, 'readtype, 'writetype) { (path, rt, wt) =>
+        import AlluxioReader.readFile
+        import scala.util.Try
+        val rtype : Option[alluxio.client.ReadType] = Try(alluxio.client.ReadType.valueOf(rt)).toOption
+        val wtype : Option[alluxio.client.WriteType] = Try(alluxio.client.WriteType.valueOf(wt)).toOption
+        (rtype, wtype) match {
+          case (Some(r), Some(w)) =>
+            readFile(path, r, w) 
+            complete(OK)
+          case _ => complete(Forbidden) // invalid request is probably more correct
+        }
+      }
+    }
+
   def initializeCassandraWithDataRoute(implicit AS: ActorSystem, AM: ActorMaterializer) = 
     (post & path("gendata")) { // run this to generate 1-million rows into Cassandra on your localhost
       generateRowsInCassandra.run()

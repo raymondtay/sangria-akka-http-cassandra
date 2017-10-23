@@ -7,6 +7,8 @@ scalaVersion := "2.12.3"
 scalacOptions ++= Seq("-deprecation", "-feature")
 
 libraryDependencies ++= Seq(
+  "org.alluxio" % "alluxio-core-client-fs" % "1.6.0",
+  "org.hdfgroup" % "hdf-java" % "2.6.1",
   "org.sangria-graphql" %% "sangria" % "1.3.0",
   "org.sangria-graphql" %% "sangria-spray-json" % "1.0.0",
   "com.typesafe.akka" %% "akka-http" % "10.0.9",
