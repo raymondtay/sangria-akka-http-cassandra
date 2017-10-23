@@ -20,8 +20,11 @@ object Server extends App {
   import system.dispatcher
 
   val route: Route =
+
     Routes.csvRoute ~
-    Routes.initializeCassandraWithDataRoute ~
+    Routes.readHDF5Route ~
+    //Routes.initializeCassandraWithDataRoute ~ // disabling the cassandra for
+    //now since its largely useless till we fix the whole thing
     (post & path("graphql")) {
       entity(as[JsValue]) { requestJson ⇒
         val JsObject(fields) = requestJson
