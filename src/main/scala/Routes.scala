@@ -54,8 +54,10 @@ object Routes {
         val wtype : Option[alluxio.client.WriteType] = Try(alluxio.client.WriteType.valueOf(wt)).toOption
         (rtype, wtype) match {
           case (Some(r), Some(w)) =>
-            readFile(path, r, w) 
-            complete(OK)
+            readFile(path, r, w) match {
+              case Left(_) => complete(custom(NotAcceptable.intValue, "Could not find the file you specified."))
+              case Right(_) => complete(OK)
+            }
           case _ => complete(Forbidden) // invalid request is probably more correct
         }
       }
