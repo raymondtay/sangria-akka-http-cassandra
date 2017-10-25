@@ -47,19 +47,27 @@ object Routes {
 
   val readHDF5Route = 
     (get & path("benchmark_alluxio_reads")) {
-      parameters('path, 'readtype, 'writetype) { (path, rt, wt) =>
+      parameters('sPath, 'dPath.?, 'readtype, 'writetype) { (src, dest, rt, wt) =>
         import AlluxioReader.readFile
+        import AlluxioWriter.writeFile
         import scala.util.Try
+
         val rtype : Option[alluxio.client.ReadType] = Try(alluxio.client.ReadType.valueOf(rt)).toOption
         val wtype : Option[alluxio.client.WriteType] = Try(alluxio.client.WriteType.valueOf(wt)).toOption
         (rtype, wtype) match {
-          case (Some(r), Some(w)) =>
-            readFile(path, r, w) match {
+          case (Some(r), Some(w)) if dest.isEmpty =>
+            readFile(src, r, w) match {
+              case Left(_) => complete(custom(NotAcceptable.intValue, "Could not find the file you specified."))
+              case Right(_) => complete(OK)
+            }
+          case (Some(r), Some(w)) if !dest.isEmpty =>
+            writeFile(src, dest.get, r, w) match {
               case Left(_) => complete(custom(NotAcceptable.intValue, "Could not find the file you specified."))
               case Right(_) => complete(OK)
             }
           case _ => complete(Forbidden) // invalid request is probably more correct
         }
+ 
       }
     }
 

@@ -30,6 +30,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.concurrent.Callable;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.Path;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -40,19 +43,27 @@ import javax.annotation.concurrent.ThreadSafe;
 public class BasicOperations implements Callable<Boolean> {
   private static final Logger LOG = LoggerFactory.getLogger(BasicOperations.class);
 
-  private static final int NUMBERS = 20;
-
-  private final AlluxioURI mFilePath;
+  private final AlluxioURI srcFilePath;
+  private final AlluxioURI destFilePath;
   private final OpenFileOptions mReadOptions;
   private final CreateFileOptions mWriteOptions;
 
   /**
-   * @param filePath the path for the files
+   * @param srcFilePath the path for the files
+   * @param destFilePath the path for the files
    * @param readType the {@link ReadType}
    * @param writeType the {@link WriteType}
    */
-  public BasicOperations(AlluxioURI filePath, ReadType readType, WriteType writeType) {
-    mFilePath = filePath;
+  public BasicOperations(AlluxioURI srcFilePath, AlluxioURI destFilePath, ReadType readType, WriteType writeType) {
+    this.srcFilePath = srcFilePath;
+    this.destFilePath = destFilePath;
+    mReadOptions = OpenFileOptions.defaults().setReadType(readType);
+    mWriteOptions = CreateFileOptions.defaults().setWriteType(writeType);
+  }
+
+  public BasicOperations(AlluxioURI srcFilePath, ReadType readType, WriteType writeType) {
+    this.srcFilePath = srcFilePath;
+    this.destFilePath = null;
     mReadOptions = OpenFileOptions.defaults().setReadType(readType);
     mWriteOptions = CreateFileOptions.defaults().setWriteType(writeType);
   }
@@ -60,34 +71,38 @@ public class BasicOperations implements Callable<Boolean> {
   @Override
   public Boolean call() throws Exception {
     FileSystem fs = FileSystem.Factory.get();
-    // writeFile(fs) - not measuring the writes as our scenarios assumes data
-    // is already present.
+    writeFile(fs);
     return readFile(fs);
   }
 
   private void writeFile(FileSystem fileSystem)
     throws IOException, AlluxioException {
-    ByteBuffer buf = ByteBuffer.allocate(NUMBERS * 4);
+
+    Path path = Paths.get(srcFilePath.toString()); // assumption is that file is found on local storage
+    byte[] data = Files.readAllBytes(path); // reads all the data in-memory
+
+    ByteBuffer buf = ByteBuffer.allocate(data.length);
     buf.order(ByteOrder.nativeOrder());
-    for (int k = 0; k < NUMBERS; k++) {
-      buf.putInt(k);
-    }
+    buf.put(data);
+
     LOG.debug("Writing data...");
+    System.out.println("Writing data...");
     long startTimeMs = CommonUtils.getCurrentMs();
-    FileOutStream os = fileSystem.createFile(mFilePath, mWriteOptions);
+    FileOutStream os = fileSystem.createFile(destFilePath, mWriteOptions);
     os.write(buf.array());
     os.close();
 
-    LOG.info(FormatUtils.formatTimeTakenMs(startTimeMs, "writeFile to file " + mFilePath));
+    LOG.info(FormatUtils.formatTimeTakenMs(startTimeMs, "writeFile to file " + destFilePath));
+    System.out.println(FormatUtils.formatTimeTakenMs(startTimeMs, "writeFile to file " + destFilePath));
   }
 
-  private boolean readFile(FileSystem fileSystem)
+  public boolean readFile(FileSystem fileSystem)
       throws IOException, AlluxioException {
     boolean pass = true;
     LOG.debug("Reading data...");
-    System.out.println("Reading data... from: " + mFilePath.toString());
+    System.out.println("Reading data... from: " + srcFilePath.toString());
     final long startTimeMs = CommonUtils.getCurrentMs();
-    FileInStream is = fileSystem.openFile(mFilePath, mReadOptions);
+    FileInStream is = fileSystem.openFile(srcFilePath, mReadOptions);
     ByteBuffer buf = ByteBuffer.allocate((int) is.remaining());
     is.read(buf.array());
     buf.order(ByteOrder.nativeOrder());
@@ -95,14 +110,10 @@ public class BasicOperations implements Callable<Boolean> {
     // Problem with the HDF5 library loading mechanism - non-standard
     // H5File ss = hdf5_getters.hdf5_open_readonly(mFilePath.toString()) ;
     System.out.println("Reading data..." + buf.array().length);
-    /*
-    for (int k = 0; k < NUMBERS; k++) {
-      pass = pass && (buf.getInt() == k);
-    }*/
     is.close();
 
-    LOG.info(FormatUtils.formatTimeTakenMs(startTimeMs, "readFile file " + mFilePath));
-    System.out.println(FormatUtils.formatTimeTakenMs(startTimeMs, "readFile file " + mFilePath));
+    LOG.info(FormatUtils.formatTimeTakenMs(startTimeMs, "readFile file " + srcFilePath));
+    System.out.println(FormatUtils.formatTimeTakenMs(startTimeMs, "readFile file " + srcFilePath));
     return pass;
   }
 }

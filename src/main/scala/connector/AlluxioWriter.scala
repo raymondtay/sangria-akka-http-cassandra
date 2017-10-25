@@ -22,25 +22,30 @@ import scala.language.higherKinds
 import scala.util.Try
 import scala.collection.JavaConversions._
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.Path;
+
 import cats._, data._, implicits._
 
-object AlluxioReader {
+object AlluxioWriter {
 
   import alluxio.examples._
 
-  // This assumes the file is already found on the FileSystem abstracted by
-  // Alluxio
-  def readFile(path : String,
-               readType : ReadType,
-               writeType : WriteType) : Either[Throwable, Boolean] = {
+  // This API writes the file to the given location
+  // and reads it back, giving us the time to read/write.
+  def writeFile(srcPath : String,
+                destPath : String,
+                readType : ReadType,
+                writeType : WriteType) : Either[Throwable, Boolean] = {
     import FileOperations._
     for {
       fs       <- Monad[Id].pure(FileSystem.Factory.get())
-      rOptions <- readFileOptions(readType)
+      data     <- loadLocalFile(srcPath)
+      wOptions <- writeFileOptions(writeType)
     } yield {
-      Try(FileOperations.readFile(path)(fs).run(rOptions)).toEither.map(_.booleanValue)
+      Try(FileOperations.writeFile(data, destPath)(fs).run(wOptions)).toEither.map(_.booleanValue)
     }
   }
 
 }
-
